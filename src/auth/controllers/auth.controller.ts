@@ -9,7 +9,7 @@ import {
     ResetPasswordDto, 
     RefreshTokenDto, 
     ResendConfirmationDto 
-} from '../dto/auth.dto';
+} from '../dto';
 import { ResponseInterceptor } from '../interceptors/response.interceptor';
 
 @Controller('auth')
