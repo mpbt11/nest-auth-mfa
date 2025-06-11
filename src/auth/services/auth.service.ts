@@ -13,7 +13,6 @@ import {
     AdminCreateUserCommand,
     AdminSetUserPasswordCommand,
     DeliveryMediumType,
-    AdminUpdateUserAttributesCommand,
     ResendConfirmationCodeCommand,
     AdminGetUserCommand,
     AdminConfirmSignUpCommand
