@@ -20,6 +20,7 @@ import {
 import { generateSecretHash } from './cognito/cognito-hash.service';
 import { AuthStep, CognitoResponse } from '../interfaces/auth.interface';
 import { createHash } from 'crypto';
+import { handleCognitoError } from '../errors/cognito-error.map';
 
 @Injectable()
 export class AuthService {
@@ -48,9 +49,7 @@ export class AuthService {
     }
 
     private generateUsernameFromEmail(email: string): string {
-        // Gera um hash do email e pega os primeiros 8 caracteres
         const hash = createHash('md5').update(email).digest('hex').substring(0, 8);
-        // Remove caracteres especiais do email e adiciona o hash
         const username = `user_${email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '')}_${hash}`;
         return username.toLowerCase();
     }
@@ -101,7 +100,6 @@ export class AuthService {
 
             const result = await this.cognitoClient.send(command);
 
-            // Tenta confirmar o usuário automaticamente
             try {
                 const confirmCommand = new AdminConfirmSignUpCommand({
                     UserPoolId: process.env.COGNITO_USER_POOL_ID,
@@ -121,7 +119,6 @@ export class AuthService {
                     }
                 };
             } catch (confirmError) {
-                // Se não conseguir confirmar automaticamente, retorna normalmente para confirmação manual
                 console.error('Failed to auto-confirm user:', confirmError);
                 return {
                     statusCode: 200,
@@ -135,17 +132,7 @@ export class AuthService {
                 };
             }
         } catch (error: any) {
-            if (error.name === 'UsernameExistsException') {
-                return {
-                    statusCode: 409,
-                    error: 'Email already exists'
-                };
-            }
-            
-            return {
-                statusCode: 400,
-                error: error.message
-            };
+            return handleCognitoError(error);
         }
     }
 
@@ -209,23 +196,12 @@ export class AuthService {
                 }
             };
         } catch (error: any) {
-            if (error.name === 'UsernameExistsException') {
-                return {
-                    statusCode: 409,
-                    error: 'Email already exists'
-                };
-            }
-            
-            return {
-                statusCode: 400,
-                error: error.message
-            };
+            return handleCognitoError(error);
         }
     }
 
     async login(email: string, password: string): Promise<CognitoResponse> {
         try {
-            // No login, permitimos usar tanto o username gerado quanto o email
             const username = email.includes('@') ? this.generateUsernameFromEmail(email) : email;
             const secretHash = this.getSecretHash(username);
             const command = new InitiateAuthCommand({
@@ -271,22 +247,7 @@ export class AuthService {
                 }
             };
         } catch (error: any) {
-            if (error.name === 'NotAuthorizedException') {
-                return {
-                    statusCode: 401,
-                    error: 'Invalid credentials'
-                };
-            }
-            if (error.name === 'UserNotConfirmedException') {
-                return {
-                    statusCode: 403,
-                    error: 'User is not confirmed'
-                };
-            }
-            return {
-                statusCode: 400,
-                error: error.message
-            };
+            return handleCognitoError(error);
         }
     }
 
@@ -337,16 +298,7 @@ export class AuthService {
                 }
             };
         } catch (error: any) {
-            if (error.name === 'CodeMismatchException') {
-                return {
-                    statusCode: 400,
-                    error: 'Invalid verification code'
-                };
-            }
-            return {
-                statusCode: 400,
-                error: error.message
-            };
+            return handleCognitoError(error);
         }
     }
 
@@ -404,32 +356,7 @@ export class AuthService {
                 }
             };
         } catch (error: any) {
-            if (error.name === 'CodeMismatchException') {
-                return {
-                    statusCode: 400,
-                    error: 'Invalid verification code'
-                };
-            }
-            if (error.name === 'ExpiredCodeException') {
-                return {
-                    statusCode: 400,
-                    error: 'Verification code has expired'
-                };
-            }
-            if (error.name === 'NotAuthorizedException' && error.message.includes('Current status is CONFIRMED')) {
-                return {
-                    statusCode: 200,
-                    data: {
-                        step: 'DONE',
-                        email: email,
-                        message: 'User was already confirmed'
-                    }
-                };
-            }
-            return {
-                statusCode: 400,
-                error: error.message
-            };
+            return handleCognitoError(error);
         }
     }
 
@@ -454,16 +381,7 @@ export class AuthService {
                 }
             };
         } catch (error: any) {
-            if (error.name === 'UserNotFoundException') {
-                return {
-                    statusCode: 404,
-                    error: 'User not found'
-                };
-            }
-            return {
-                statusCode: 400,
-                error: error.message
-            };
+            return handleCognitoError(error);
         }
     }
 
@@ -489,27 +407,11 @@ export class AuthService {
                 }
             };
         } catch (error: any) {
-            if (error.name === 'CodeMismatchException') {
-                return {
-                    statusCode: 400,
-                    error: 'Invalid verification code'
-                };
-            }
-            if (error.name === 'ExpiredCodeException') {
-                return {
-                    statusCode: 400,
-                    error: 'Verification code has expired'
-                };
-            }
-            return {
-                statusCode: 400,
-                error: error.message
-            };
+            return handleCognitoError(error);
         }
     }
 
     async refresh(refreshToken: string): Promise<CognitoResponse> {
-      
         try {
             const command = new InitiateAuthCommand({
                 ClientId: process.env.COGNITO_CLIENT_ID,
@@ -538,16 +440,7 @@ export class AuthService {
                 }
             };
         } catch (error: any) {
-            if (error.name === 'NotAuthorizedException') {
-                return {
-                    statusCode: 401,
-                    error: 'Token has expired or is invalid'
-                };
-            }
-            return {
-                statusCode: 400,
-                error: error.message
-            };
+            return handleCognitoError(error);
         }
     }
 
@@ -573,28 +466,7 @@ export class AuthService {
                 }
             };
         } catch (error: any) {
-            if (error.name === 'UserNotFoundException') {
-                return {
-                    statusCode: 404,
-                    error: 'User not found'
-                };
-            }
-            if (error.name === 'InvalidParameterException') {
-                return {
-                    statusCode: 400,
-                    error: 'Invalid email format'
-                };
-            }
-            if (error.name === 'LimitExceededException') {
-                return {
-                    statusCode: 429,
-                    error: 'Too many attempts. Please try again later'
-                };
-            }
-            return {
-                statusCode: 400,
-                error: error.message
-            };
+            return handleCognitoError(error);
         }
     }
 } 
