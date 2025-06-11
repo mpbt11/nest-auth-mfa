@@ -15,8 +15,12 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    it('should return home page data', () => {
+      const result = appController.getHome();
+      expect(result).toEqual({
+        isAuthenticated: false,
+        userInfo: null
+      });
     });
   });
 });
