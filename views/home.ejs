@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Amazon Cognito authentication with NestJS example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Amazon Cognito User Pool Demo</h1>
+
+        <% if (isAuthenticated) { %>
+            <div>
+                <h2>Welcome, <%= userInfo.username || userInfo.email %></h2>
+                <p>Here are your user attributes:</p>
+                <pre><%= JSON.stringify(userInfo, null, 4) %></pre>
+            </div>
+            <a href="/auth/logout" class="button">Logout</a>
+        <% } else { %>
+            <p>Please log in to continue</p>
+            <a href="/auth/login" class="button">Login</a>
+        <% } %>
+    </div>
+</body>
+</html> 
