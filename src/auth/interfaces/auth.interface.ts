@@ -1,4 +1,4 @@
-export type AuthStep = 'NEW_PASSWORD_REQUIRED' | 'SMS_MFA' | 'SOFTWARE_TOKEN_MFA' | 'DONE';
+export type AuthStep = 'CONFIRM_SIGN_UP' | 'NEW_PASSWORD_REQUIRED' | 'SMS_MFA' | 'SOFTWARE_TOKEN_MFA' | 'DONE';
 
 export interface AuthResponse {
     step: AuthStep;
