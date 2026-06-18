@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { 
+import {
     SignUpCommand,
     InitiateAuthCommand,
     ConfirmSignUpCommand,
@@ -13,9 +13,7 @@ import {
     AdminCreateUserCommand,
     AdminSetUserPasswordCommand,
     DeliveryMediumType,
-    ResendConfirmationCodeCommand,
-    AdminGetUserCommand,
-    AdminConfirmSignUpCommand
+    ResendConfirmationCodeCommand
 } from '@aws-sdk/client-cognito-identity-provider';
 import { generateSecretHash } from './cognito/cognito-hash.service';
 import { AuthStep, CognitoResponse } from '../interfaces/auth.interface';
@@ -69,9 +67,9 @@ export class AuthService {
 
     async register(
         email: string,
-        password: string, 
-        nickname: string,
+        password: string,
         name: string,
+        nickname: string,
         address: string,
         birthdate: string,
         gender: string,
@@ -100,37 +98,16 @@ export class AuthService {
 
             const result = await this.cognitoClient.send(command);
 
-            try {
-                const confirmCommand = new AdminConfirmSignUpCommand({
-                    UserPoolId: process.env.COGNITO_USER_POOL_ID,
-                    Username: username
-                });
-
-                await this.cognitoClient.send(confirmCommand);
-                
-                return {
-                    statusCode: 200,
-                    data: {
-                        step: 'SMS_MFA',
-                        userId: result.UserSub,
-                        email: email,
-                        userConfirmed: true,
-                        codeDeliveryDetails: result.CodeDeliveryDetails
-                    }
-                };
-            } catch (confirmError) {
-                console.error('Failed to auto-confirm user:', confirmError);
-                return {
-                    statusCode: 200,
-                    data: {
-                        step: 'SMS_MFA',
-                        userId: result.UserSub,
-                        email: email,
-                        userConfirmed: result.UserConfirmed,
-                        codeDeliveryDetails: result.CodeDeliveryDetails
-                    }
-                };
-            }
+            return {
+                statusCode: 200,
+                data: {
+                    step: 'CONFIRM_SIGN_UP',
+                    userId: result.UserSub,
+                    email: email,
+                    userConfirmed: result.UserConfirmed,
+                    codeDeliveryDetails: result.CodeDeliveryDetails
+                }
+            };
         } catch (error: any) {
             return handleCognitoError(error);
         }
@@ -138,9 +115,9 @@ export class AuthService {
 
     async adminCreateUser(
         email: string,
-        password: string, 
-        nickname: string,
+        password: string,
         name: string,
+        nickname: string,
         address: string,
         birthdate: string,
         gender: string,
@@ -180,7 +157,7 @@ export class AuthService {
 
                 await this.cognitoClient.send(setPasswordCommand);
             }
-            
+
             return {
                 statusCode: 200,
                 data: {
@@ -215,7 +192,7 @@ export class AuthService {
             });
 
             const result = await this.cognitoClient.send(command);
-           
+
             const step = this.mapChallengeToStep(result.ChallengeName);
 
             if (step !== 'DONE') {
@@ -303,56 +280,25 @@ export class AuthService {
     }
 
     async confirm(email: string, code: string): Promise<CognitoResponse> {
-        const username = this.generateUsernameFromEmail(email);
         try {
-            let isAlreadyConfirmed = false;
+            const username = this.generateUsernameFromEmail(email);
+            const secretHash = this.getSecretHash(username);
 
-            try {
-                const getUserCommand = new AdminGetUserCommand({
-                    UserPoolId: process.env.COGNITO_USER_POOL_ID,
-                    Username: username
-                });
+            const command = new ConfirmSignUpCommand({
+                ClientId: process.env.COGNITO_CLIENT_ID,
+                Username: username,
+                ConfirmationCode: code,
+                SecretHash: secretHash
+            });
 
-                const userInfo = await this.cognitoClient.send(getUserCommand);
-                const userStatus = userInfo.UserStatus;
-
-                if (userStatus === 'CONFIRMED') {
-                    isAlreadyConfirmed = true;
-                }
-            } catch (getUserError) {
-                console.error('Failed to get user status:', getUserError);
-            }
-
-            if (!isAlreadyConfirmed) {
-                try {
-                    const adminCommand = new AdminConfirmSignUpCommand({
-                        UserPoolId: process.env.COGNITO_USER_POOL_ID,
-                        Username: username
-                    });
-
-                    await this.cognitoClient.send(adminCommand);
-                } catch (adminError) {
-                    console.error('Failed to confirm as admin:', adminError);
-                    const secretHash = this.getSecretHash(username);
-                    const command = new ConfirmSignUpCommand({
-                        ClientId: process.env.COGNITO_CLIENT_ID,
-                        Username: username,
-                        ConfirmationCode: code,
-                        SecretHash: secretHash
-                    });
-
-                    await this.cognitoClient.send(command);
-                }
-            }
+            await this.cognitoClient.send(command);
 
             return {
                 statusCode: 200,
                 data: {
                     step: 'DONE',
                     email: email,
-                    message: isAlreadyConfirmed 
-                        ? 'User was already confirmed'
-                        : 'User confirmed successfully'
+                    message: 'User confirmed successfully'
                 }
             };
         } catch (error: any) {
@@ -371,7 +317,7 @@ export class AuthService {
             });
 
             const result = await this.cognitoClient.send(command);
-            
+
             return {
                 statusCode: 200,
                 data: {
@@ -398,7 +344,7 @@ export class AuthService {
             });
 
             await this.cognitoClient.send(command);
-            
+
             return {
                 statusCode: 200,
                 data: {
@@ -455,7 +401,7 @@ export class AuthService {
             });
 
             const result = await this.cognitoClient.send(command);
-            
+
             return {
                 statusCode: 200,
                 data: {
