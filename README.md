@@ -1,6 +1,6 @@
 # Plataforma de Identidade e SSO (nest-auth-mfa)
 
-Plataforma de **autenticação única (SSO)** e **gestão de usuários** para empresas, construída sobre o [Amazon Cognito](https://aws.amazon.com/cognito/). Permite que um colaborador faça **login uma única vez** e acesse **várias aplicações** da empresa, com controle de acesso por **setor/grupo** e um **painel de administração** para gerenciar pessoas.
+Plataforma de **autenticação única (SSO)** e **gestão de usuários** para empresas, construída sobre o [Amazon Cognito](https://aws.amazon.com/cognito/). Permite que um colaborador faça **login uma única vez** e acesse **várias aplicações** da empresa, com controle de acesso por **setor/grupo** e um **painel de administração** para gerenciar usuários.
 
 Este repositório é o **backend (API)** do sistema. A interface (portal) fica no projeto **[`portal-sso`](../portal-sso)**.
 
