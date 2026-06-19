@@ -16,7 +16,7 @@ Este repositório é o **backend (API)** do sistema. A interface (portal) fica n
 - [Guia de uso (administrador)](#guia-de-uso-administrador)
 - [Referência da API](#referência-da-api)
 - [Segurança](#segurança)
-- [Checklist para produção](#checklist-para-produção)
+- [Recomendações para produção](#recomendações-para-produção)
 
 ---
 
@@ -184,7 +184,7 @@ Exigem `Authorization: Bearer <access_token>` válido do Cognito.
 | `GET` | `/auth/admin/groups/:group/users` | lista os membros do grupo |
 
 ### Autenticação programática (opcional)
-Endpoints REST para integração direta (sem o Hosted UI): `POST /auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password`, entre outros. O fluxo recomendado para o portal é o Hosted UI (ver `portal-sso`).
+Endpoints REST para integração direta (sem o Hosted UI): `POST /auth/login`, `/auth/refresh`, `/auth/forgot-password` e `/auth/reset-password`. O fluxo recomendado para o portal é o Hosted UI (ver `portal-sso`).
 
 ---
 
@@ -198,17 +198,11 @@ Endpoints REST para integração direta (sem o Hosted UI): `POST /auth/login`, `
 
 ---
 
-## Checklist para produção
+## Recomendações para produção
 
-- [ ] **E-mail:** conectar o **Amazon SES** ao Cognito (o envio padrão tem limite baixo e é só para testes).
-- [ ] **MFA:** habilitar MFA (SMS ou app autenticador) no User Pool, conforme a política da empresa.
-- [ ] **Autocadastro:** manter o autorregistro **desligado** (modelo de provisionamento por administrador).
-- [ ] **Credenciais:** usar **IAM Role** em vez de chaves de acesso quando hospedado na AWS.
-- [ ] **HTTPS e CORS:** configurar `CORS_ORIGINS` com os domínios de produção.
-- [ ] **Federação (opcional):** integrar o Cognito ao diretório corporativo (Azure AD / Google Workspace) via SAML/OIDC.
-
----
-
-## Testes
-
-O projeto vem com **Jest** configurado (`npm test`). Ainda não há testes escritos — recomenda-se cobrir as partes críticas (login, guards de administração e criação de usuário) antes de ir para produção.
+- **E-mail:** integrar o **Amazon SES** ao Cognito para envio em escala com domínio próprio.
+- **MFA:** configurar MFA (SMS ou aplicativo autenticador) conforme a política de segurança da empresa.
+- **Provisionamento:** manter o cadastro restrito a administradores.
+- **Credenciais:** utilizar **IAM Role** ao hospedar na AWS.
+- **CORS:** definir `CORS_ORIGINS` com os domínios de produção.
+- **Federação:** integrar o Cognito a um diretório corporativo (Azure AD / Google Workspace) via SAML/OIDC.
