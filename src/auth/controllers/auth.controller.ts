@@ -1,14 +1,20 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseInterceptors } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, HttpCode, HttpStatus, UseInterceptors, UseGuards } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
-import { 
-    RegisterDto, 
-    LoginDto, 
-    ChallengeResponseDto, 
-    ConfirmDto, 
-    ForgotPasswordDto, 
-    ResetPasswordDto, 
-    RefreshTokenDto, 
-    ResendConfirmationDto 
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { GroupsGuard } from '../guards/groups.guard';
+import { Groups } from '../decorators/groups.decorator';
+import {
+    RegisterDto,
+    LoginDto,
+    ChallengeResponseDto,
+    ConfirmDto,
+    ForgotPasswordDto,
+    ResetPasswordDto,
+    RefreshTokenDto,
+    ResendConfirmationDto,
+    CreateGroupDto,
+    GroupMembershipDto,
+    AdminCreateUserDto
 } from '../dto';
 import { ResponseInterceptor } from '../interceptors/response.interceptor';
 
@@ -80,16 +86,45 @@ export class AuthController {
 
     @Post('admin/create-user')
     @HttpCode(HttpStatus.OK)
-    async adminCreateUser(@Body() body: RegisterDto) {
+    @UseGuards(JwtAuthGuard, GroupsGuard)
+    @Groups('admin')
+    async adminCreateUser(@Body() body: AdminCreateUserDto) {
         return this.authService.adminCreateUser(
             body.email,
-            body.password,
             body.name,
-            body.nickname,
-            body.address,
-            body.birthdate,
-            body.gender,
-            body.phone_number
+            body.group
         );
     }
-} 
+
+    @Post('admin/groups')
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(JwtAuthGuard, GroupsGuard)
+    @Groups('admin')
+    async createGroup(@Body() body: CreateGroupDto) {
+        return this.authService.createGroup(body.name, body.description);
+    }
+
+    @Post('admin/groups/add-user')
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(JwtAuthGuard, GroupsGuard)
+    @Groups('admin')
+    async addUserToGroup(@Body() body: GroupMembershipDto) {
+        return this.authService.addUserToGroup(body.email, body.group);
+    }
+
+    @Post('admin/groups/remove-user')
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(JwtAuthGuard, GroupsGuard)
+    @Groups('admin')
+    async removeUserFromGroup(@Body() body: GroupMembershipDto) {
+        return this.authService.removeUserFromGroup(body.email, body.group);
+    }
+
+    @Get('admin/groups/:group/users')
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(JwtAuthGuard, GroupsGuard)
+    @Groups('admin')
+    async listUsersInGroup(@Param('group') group: string) {
+        return this.authService.listUsersInGroup(group);
+    }
+}
