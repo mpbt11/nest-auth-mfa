@@ -11,13 +11,14 @@ import {
     ChallengeNameType,
     AttributeType,
     AdminCreateUserCommand,
-    AdminSetUserPasswordCommand,
-    DeliveryMediumType,
-    ResendConfirmationCodeCommand
+    ResendConfirmationCodeCommand,
+    AdminAddUserToGroupCommand,
+    AdminRemoveUserFromGroupCommand,
+    CreateGroupCommand,
+    ListUsersInGroupCommand
 } from '@aws-sdk/client-cognito-identity-provider';
 import { generateSecretHash } from './cognito/cognito-hash.service';
 import { AuthStep, CognitoResponse } from '../interfaces/auth.interface';
-import { createHash } from 'crypto';
 import { handleCognitoError } from '../errors/cognito-error.map';
 
 @Injectable()
@@ -46,10 +47,8 @@ export class AuthService {
         );
     }
 
-    private generateUsernameFromEmail(email: string): string {
-        const hash = createHash('md5').update(email).digest('hex').substring(0, 8);
-        const username = `user_${email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '')}_${hash}`;
-        return username.toLowerCase();
+    private cognitoUsername(email: string): string {
+        return email.trim().toLowerCase();
     }
 
     private mapChallengeToStep(challengeName?: string): AuthStep {
@@ -76,7 +75,7 @@ export class AuthService {
         phone_number: string
     ): Promise<CognitoResponse> {
         try {
-            const username = this.generateUsernameFromEmail(email);
+            const username = this.cognitoUsername(email);
             const secretHash = this.getSecretHash(username);
             const userAttributes: AttributeType[] = [
                 { Name: "email", Value: email },
@@ -98,6 +97,18 @@ export class AuthService {
 
             const result = await this.cognitoClient.send(command);
 
+            const defaultGroup = process.env.COGNITO_DEFAULT_GROUP;
+            if (defaultGroup) {
+                try {
+                    await this.cognitoClient.send(new AdminAddUserToGroupCommand({
+                        UserPoolId: process.env.COGNITO_USER_POOL_ID,
+                        Username: username,
+                        GroupName: defaultGroup
+                    }));
+                } catch {
+                }
+            }
+
             return {
                 statusCode: 200,
                 data: {
@@ -115,61 +126,37 @@ export class AuthService {
 
     async adminCreateUser(
         email: string,
-        password: string,
         name: string,
-        nickname: string,
-        address: string,
-        birthdate: string,
-        gender: string,
-        phone_number: string
+        group?: string
     ): Promise<CognitoResponse> {
         try {
-            const username = this.generateUsernameFromEmail(email);
-            const userAttributes: AttributeType[] = [
-                { Name: "email", Value: email },
-                { Name: "name", Value: name },
-                { Name: "nickname", Value: nickname },
-                { Name: "address", Value: address },
-                { Name: "birthdate", Value: birthdate },
-                { Name: "gender", Value: gender },
-                { Name: "phone_number", Value: phone_number }
-            ];
+            const username = this.cognitoUsername(email);
 
-            const command = new AdminCreateUserCommand({
+            await this.cognitoClient.send(new AdminCreateUserCommand({
                 UserPoolId: process.env.COGNITO_USER_POOL_ID,
                 Username: username,
-                UserAttributes: userAttributes,
-                TemporaryPassword: password,
-                DesiredDeliveryMediums: [DeliveryMediumType.SMS],
-                MessageAction: "SUPPRESS"
-            });
+                UserAttributes: [
+                    { Name: 'email', Value: email },
+                    { Name: 'email_verified', Value: 'true' },
+                    { Name: 'name', Value: name }
+                ],
+                DesiredDeliveryMediums: ['EMAIL']
+            }));
 
-            const result = await this.cognitoClient.send(command);
-
-            // Define a senha permanente
-            if (result.User) {
-                const setPasswordCommand = new AdminSetUserPasswordCommand({
+            if (group) {
+                await this.cognitoClient.send(new AdminAddUserToGroupCommand({
                     UserPoolId: process.env.COGNITO_USER_POOL_ID,
                     Username: username,
-                    Password: password,
-                    Permanent: true
-                });
-
-                await this.cognitoClient.send(setPasswordCommand);
+                    GroupName: group
+                }));
             }
 
             return {
                 statusCode: 200,
                 data: {
-                    step: 'SMS_MFA',
-                    userId: result.User?.Username,
-                    email: email,
-                    userConfirmed: true,
-                    codeDeliveryDetails: {
-                        AttributeName: "phone_number",
-                        DeliveryMedium: "SMS",
-                        Destination: phone_number
-                    }
+                    step: 'DONE',
+                    email,
+                    message: `Convite enviado para ${email}${group ? ` (setor '${group}')` : ''}.`
                 }
             };
         } catch (error: any) {
@@ -179,7 +166,7 @@ export class AuthService {
 
     async login(email: string, password: string): Promise<CognitoResponse> {
         try {
-            const username = email.includes('@') ? this.generateUsernameFromEmail(email) : email;
+            const username = email.includes('@') ? this.cognitoUsername(email) : email;
             const secretHash = this.getSecretHash(username);
             const command = new InitiateAuthCommand({
                 ClientId: process.env.COGNITO_CLIENT_ID,
@@ -230,7 +217,7 @@ export class AuthService {
 
     async respondToChallenge(email: string, session: string, challengeResponse: any): Promise<CognitoResponse> {
         try {
-            const username = this.generateUsernameFromEmail(email);
+            const username = this.cognitoUsername(email);
             const secretHash = this.getSecretHash(username);
             const command = new RespondToAuthChallengeCommand({
                 ClientId: process.env.COGNITO_CLIENT_ID,
@@ -281,7 +268,7 @@ export class AuthService {
 
     async confirm(email: string, code: string): Promise<CognitoResponse> {
         try {
-            const username = this.generateUsernameFromEmail(email);
+            const username = this.cognitoUsername(email);
             const secretHash = this.getSecretHash(username);
 
             const command = new ConfirmSignUpCommand({
@@ -308,7 +295,7 @@ export class AuthService {
 
     async forgotPassword(email: string): Promise<CognitoResponse> {
         try {
-            const username = this.generateUsernameFromEmail(email);
+            const username = this.cognitoUsername(email);
             const secretHash = this.getSecretHash(username);
             const command = new ForgotPasswordCommand({
                 ClientId: process.env.COGNITO_CLIENT_ID,
@@ -333,7 +320,7 @@ export class AuthService {
 
     async resetPassword(email: string, code: string, newPassword: string): Promise<CognitoResponse> {
         try {
-            const username = this.generateUsernameFromEmail(email);
+            const username = this.cognitoUsername(email);
             const secretHash = this.getSecretHash(username);
             const command = new ConfirmForgotPasswordCommand({
                 ClientId: process.env.COGNITO_CLIENT_ID,
@@ -392,7 +379,7 @@ export class AuthService {
 
     async resendConfirmationCode(email: string): Promise<CognitoResponse> {
         try {
-            const username = this.generateUsernameFromEmail(email);
+            const username = this.cognitoUsername(email);
             const secretHash = this.getSecretHash(username);
             const command = new ResendConfirmationCodeCommand({
                 ClientId: process.env.COGNITO_CLIENT_ID,
@@ -410,6 +397,81 @@ export class AuthService {
                     message: 'Confirmation code resent successfully',
                     codeDeliveryDetails: result.CodeDeliveryDetails
                 }
+            };
+        } catch (error: any) {
+            return handleCognitoError(error);
+        }
+    }
+
+    async createGroup(name: string, description?: string): Promise<CognitoResponse> {
+        try {
+            await this.cognitoClient.send(new CreateGroupCommand({
+                UserPoolId: process.env.COGNITO_USER_POOL_ID,
+                GroupName: name,
+                Description: description
+            }));
+
+            return {
+                statusCode: 200,
+                data: { step: 'DONE', message: `Grupo '${name}' criado com sucesso` }
+            };
+        } catch (error: any) {
+            return handleCognitoError(error);
+        }
+    }
+
+    async addUserToGroup(email: string, group: string): Promise<CognitoResponse> {
+        try {
+            const username = this.cognitoUsername(email);
+            await this.cognitoClient.send(new AdminAddUserToGroupCommand({
+                UserPoolId: process.env.COGNITO_USER_POOL_ID,
+                Username: username,
+                GroupName: group
+            }));
+
+            return {
+                statusCode: 200,
+                data: { step: 'DONE', email, message: `Usuário adicionado ao grupo '${group}'` }
+            };
+        } catch (error: any) {
+            return handleCognitoError(error);
+        }
+    }
+
+    async removeUserFromGroup(email: string, group: string): Promise<CognitoResponse> {
+        try {
+            const username = this.cognitoUsername(email);
+            await this.cognitoClient.send(new AdminRemoveUserFromGroupCommand({
+                UserPoolId: process.env.COGNITO_USER_POOL_ID,
+                Username: username,
+                GroupName: group
+            }));
+
+            return {
+                statusCode: 200,
+                data: { step: 'DONE', email, message: `Usuário removido do grupo '${group}'` }
+            };
+        } catch (error: any) {
+            return handleCognitoError(error);
+        }
+    }
+
+    async listUsersInGroup(group: string): Promise<CognitoResponse> {
+        try {
+            const result = await this.cognitoClient.send(new ListUsersInGroupCommand({
+                UserPoolId: process.env.COGNITO_USER_POOL_ID,
+                GroupName: group
+            }));
+
+            const users = (result.Users ?? []).map((u) => ({
+                username: u.Username,
+                status: u.UserStatus,
+                email: u.Attributes?.find((a) => a.Name === 'email')?.Value
+            }));
+
+            return {
+                statusCode: 200,
+                data: { step: 'DONE', message: `${users.length} usuário(s) no grupo '${group}'`, users } as any
             };
         } catch (error: any) {
             return handleCognitoError(error);

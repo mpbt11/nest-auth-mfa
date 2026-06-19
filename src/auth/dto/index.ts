@@ -5,4 +5,6 @@ export * from './confirm.dto';
 export * from './forgot-password.dto';
 export * from './reset-password.dto';
 export * from './refresh-token.dto';
-export * from './resend-confirmation.dto'; 
+export * from './resend-confirmation.dto';
+export * from './group.dto';
+export * from './admin-create-user.dto'; 
