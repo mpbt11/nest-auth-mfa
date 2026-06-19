@@ -62,19 +62,19 @@ Cada usuário pertence a um ou mais **grupos** (setores). Cada aplicação decla
 ## Componentes
 
 ```
-nest-auth-mfa/                     # Backend (esta pasta)
-├── src/
-│   ├── auth/
-│   │   ├── controllers/           # Endpoints de autenticação e administração
-│   │   ├── services/              # Integração com o Amazon Cognito
-│   │   ├── guards/                # Validação de token e de grupos (RBAC)
-│   │   ├── decorators/            # @Groups() para proteger rotas por setor
-│   │   └── dto/                   # Validação de entrada
-│   ├── common/filters/            # Tratamento global de erros
-│   ├── setup-pool.ts              # Provisiona o ambiente Cognito (1x)
-│   └── seed-admin.ts              # Cria o primeiro administrador (1x)
-portal-sso/                        # Frontend (projeto separado)
+src/
+├── auth/
+│   ├── controllers/           # Endpoints de autenticação e administração
+│   ├── services/              # Integração com o Amazon Cognito
+│   ├── guards/                # Validação de token e de grupos (RBAC)
+│   ├── decorators/            # @Groups() para proteger rotas por setor
+│   └── dto/                   # Validação de entrada
+├── common/filters/            # Tratamento global de erros
+├── setup-pool.ts              # Provisiona o ambiente Cognito (1x)
+└── seed-admin.ts              # Cria o primeiro administrador (1x)
 ```
+
+> O frontend (portal) é um projeto separado: **[`portal-sso`](../portal-sso)**.
 
 ---
 
@@ -82,7 +82,7 @@ portal-sso/                        # Frontend (projeto separado)
 
 ### Pré-requisitos
 - Node.js 20+
-- Uma conta AWS com credenciais IAM com a permissão **AmazonCognitoPowerUser**
+- Credenciais IAM da AWS com a permissão **AmazonCognitoPowerUser**
 
 ### 1. Instalar dependências
 ```bash
@@ -120,7 +120,7 @@ COGNITO_ALLOWED_CLIENT_IDS=...
 | `COGNITO_USER_POOL_ID` | Sim | ID do User Pool. |
 | `COGNITO_CLIENT_ID` / `COGNITO_CLIENT_SECRET` | Sim | App Client e seu secret. |
 | `COGNITO_ALLOWED_CLIENT_IDS` | Sim | App Clients aceitos pela API (separados por vírgula). |
-| `COGNITO_DEFAULT_GROUP` | Não | Grupo atribuído automaticamente a novos cadastros. |
+| `COGNITO_DEFAULT_GROUP` | Não | Grupo atribuído automaticamente no cadastro programático (`/auth/register`). |
 | `PORT` | Não | Porta HTTP (padrão: `3000`). |
 | `CORS_ORIGINS` | Não | Origens permitidas para CORS (separadas por vírgula). |
 
@@ -175,13 +175,13 @@ Exigem `Authorization: Bearer <access_token>` válido do Cognito.
 | `GET` | `/me` | Autenticado | Dados do usuário do token. |
 
 ### Administração (somente grupo `admin`)
-| Método | Rota | Corpo |
+| Método | Rota | Corpo / descrição |
 |---|---|---|
 | `POST` | `/auth/admin/create-user` | `{ name, email, group? }` — envia convite |
 | `POST` | `/auth/admin/groups` | `{ name, description? }` — cria grupo |
-| `POST` | `/auth/admin/groups/add-user` | `{ email, group }` |
-| `POST` | `/auth/admin/groups/remove-user` | `{ email, group }` |
-| `GET` | `/auth/admin/groups/:group/users` | — lista membros |
+| `POST` | `/auth/admin/groups/add-user` | `{ email, group }` — vincula ao grupo |
+| `POST` | `/auth/admin/groups/remove-user` | `{ email, group }` — remove do grupo |
+| `GET` | `/auth/admin/groups/:group/users` | lista os membros do grupo |
 
 ### Autenticação programática (opcional)
 Endpoints REST para integração direta (sem o Hosted UI): `POST /auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password`, entre outros. O fluxo recomendado para o portal é o Hosted UI (ver `portal-sso`).
@@ -210,8 +210,5 @@ Endpoints REST para integração direta (sem o Hosted UI): `POST /auth/login`, `
 ---
 
 ## Testes
-```bash
-npm run test       # unitários
-npm run test:e2e   # end-to-end
-npm run test:cov   # cobertura
-```
+
+O projeto vem com **Jest** configurado (`npm test`). Ainda não há testes escritos — recomenda-se cobrir as partes críticas (login, guards de administração e criação de usuário) antes de ir para produção.
