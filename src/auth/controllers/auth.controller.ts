@@ -4,14 +4,14 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { GroupsGuard } from '../guards/groups.guard';
 import { Groups } from '../decorators/groups.decorator';
 import {
-    RegisterDto,
+    // RegisterDto,
     LoginDto,
-    ChallengeResponseDto,
-    ConfirmDto,
+    // ChallengeResponseDto,
+    // ConfirmDto,
     ForgotPasswordDto,
     ResetPasswordDto,
     RefreshTokenDto,
-    ResendConfirmationDto,
+    // ResendConfirmationDto,
     CreateGroupDto,
     GroupMembershipDto,
     AdminCreateUserDto
@@ -23,6 +23,8 @@ import { ResponseInterceptor } from '../interceptors/response.interceptor';
 export class AuthController {
     constructor(private readonly authService: AuthService) {}
 
+    // Endpoint legado desativado (cadastro é por convite no /admin)
+    /*
     @Post('register')
     @HttpCode(HttpStatus.OK)
     async register(@Body() body: RegisterDto) {
@@ -37,6 +39,7 @@ export class AuthController {
             body.phone_number
         );
     }
+    */
 
     @Post('login')
     @HttpCode(HttpStatus.OK)
@@ -44,21 +47,27 @@ export class AuthController {
         return this.authService.login(body.email, body.password);
     }
 
+    // Endpoint legado desativado (MFA por SMS)
+    /*
     @Post('challenge')
     @HttpCode(HttpStatus.OK)
     async respondToChallenge(@Body() body: ChallengeResponseDto) {
         return this.authService.respondToChallenge(
-            body.email, 
-            body.session, 
+            body.email,
+            body.session,
             { code: body.code }
         );
     }
+    */
 
+    // Endpoint legado desativado (confirmação de cadastro)
+    /*
     @Post('confirm')
     @HttpCode(HttpStatus.OK)
     async confirm(@Body() body: ConfirmDto) {
         return this.authService.confirm(body.email, body.code);
     }
+    */
 
     @Post('forgot-password')
     @HttpCode(HttpStatus.OK)
@@ -78,11 +87,14 @@ export class AuthController {
         return this.authService.refresh(body.refreshToken);
     }
 
+    // Endpoint legado desativado (reenvio de código de confirmação)
+    /*
     @Post('resend-confirmation')
     @HttpCode(HttpStatus.OK)
     async resendConfirmationCode(@Body() body: ResendConfirmationDto) {
         return this.authService.resendConfirmationCode(body.email);
     }
+    */
 
     @Post('admin/create-user')
     @HttpCode(HttpStatus.OK)
