@@ -5,11 +5,25 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import helmet from 'helmet';
+import session from 'express-session';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.use(helmet());
+
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || 'mudar em prod',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 1000 * 60 * 60,
+      },
+    }),
+  );
 
   const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((o) => o.trim());
   if (corsOrigins?.length) {
