@@ -4,6 +4,8 @@ Plataforma de **autenticação única (SSO)** e **gestão de usuários** para em
 
 Este repositório é o **backend (API)** do sistema. A interface (portal) fica no projeto **[`portal-sso`](../portal-sso)**.
 
+**Stack:** NestJS · TypeScript · Amazon Cognito · JWT (JWKS) · class-validator · Jest
+
 ---
 
 ## Sumário
@@ -120,7 +122,6 @@ COGNITO_ALLOWED_CLIENT_IDS=...
 | `COGNITO_USER_POOL_ID` | Sim | ID do User Pool. |
 | `COGNITO_CLIENT_ID` / `COGNITO_CLIENT_SECRET` | Sim | App Client e seu secret. |
 | `COGNITO_ALLOWED_CLIENT_IDS` | Sim | App Clients aceitos pela API (separados por vírgula). |
-| `COGNITO_DEFAULT_GROUP` | Não | Grupo atribuído automaticamente no cadastro programático (`/auth/register`). |
 | `PORT` | Não | Porta HTTP (padrão: `3000`). |
 | `CORS_ORIGINS` | Não | Origens permitidas para CORS (separadas por vírgula). |
 
