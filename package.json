@@ -15,11 +15,11 @@
     "seed:admin": "ts-node src/seed-admin.ts",
     "setup:pool": "ts-node src/setup-pool.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
+    "test:cov": "jest --coverage --passWithNoTests",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json --passWithNoTests"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.823.0",
