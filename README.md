@@ -1,98 +1,217 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Plataforma de Identidade e SSO (nest-auth-mfa)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Plataforma de **autenticação única (SSO)** e **gestão de usuários** para empresas, construída sobre o [Amazon Cognito](https://aws.amazon.com/cognito/). Permite que um colaborador faça **login uma única vez** e acesse **várias aplicações** da empresa, com controle de acesso por **setor/grupo** e um **painel de administração** para gerenciar pessoas.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Este repositório é o **backend (API)** do sistema. A interface (portal) fica no projeto **[`portal-sso`](../portal-sso)**.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Sumário
 
-## Project setup
+- [Visão geral do sistema](#visão-geral-do-sistema)
+- [Como o sistema funciona](#como-o-sistema-funciona)
+- [Componentes](#componentes)
+- [Instalação e configuração](#instalação-e-configuração)
+- [Primeiro acesso (administrador)](#primeiro-acesso-administrador)
+- [Guia de uso (administrador)](#guia-de-uso-administrador)
+- [Referência da API](#referência-da-api)
+- [Segurança](#segurança)
+- [Checklist para produção](#checklist-para-produção)
 
-```bash
-$ npm install
+---
+
+## Visão geral do sistema
+
+| Papel | Responsável |
+|---|---|
+| **Identidade** (login, senha, MFA) | Amazon Cognito (Hosted UI) |
+| **Regras de acesso / API** | Este backend (NestJS) |
+| **Interface / portal** | [`portal-sso`](../portal-sso) (Next.js) |
+
+```
+┌──────────────┐  login    ┌─────────────────┐
+│  portal-sso  │ ───────▶  │  Amazon Cognito │
+│  (Next.js)   │ ◀───────  │  (login + MFA)  │
+│  Portal/UI   │  tokens   └─────────────────┘
+│              │
+│  /apps       │  Bearer   ┌─────────────────┐
+│  /admin      │ ───────▶  │  nest-auth-mfa  │  (valida token,
+└──────────────┘           │  (esta API)     │   grupos, admin)
+                           └─────────────────┘
 ```
 
-## Compile and run the project
+- **Login único (SSO):** o colaborador autentica no Cognito e acessa todas as aplicações sem novo login.
+- **Acesso por setor:** cada aplicação é visível apenas para os grupos autorizados (ex.: `vendas`, `financeiro`).
+- **Provisionamento por administrador:** novos usuários são **convidados por e-mail** por um admin — não há cadastro aberto ao público.
 
-```bash
-# development
-$ npm run start
+---
 
-# watch mode
-$ npm run start:dev
+## Como o sistema funciona
 
-# production mode
-$ npm run start:prod
+### 1. Login do colaborador
+O usuário acessa o portal, clica em **Entrar** e é levado à tela de login do Cognito (e-mail + senha). Após autenticar, volta ao **portal de aplicações**, onde vê apenas os sistemas liberados para o seu setor.
+
+### 2. Cadastro de novos usuários (convite)
+O administrador, no painel `/admin`, informa **Nome + E-mail + Setor**. O sistema envia um **convite por e-mail** com uma senha temporária; a pessoa faz o primeiro login e define a própria senha. O administrador nunca conhece a senha do usuário.
+
+### 3. Controle de acesso por grupo
+Cada usuário pertence a um ou mais **grupos** (setores). Cada aplicação declara quais grupos podem acessá-la. O sistema mostra/oculta as aplicações conforme os grupos do usuário, e a API **bloqueia** no servidor quem não tem permissão.
+
+---
+
+## Componentes
+
+```
+nest-auth-mfa/                     # Backend (esta pasta)
+├── src/
+│   ├── auth/
+│   │   ├── controllers/           # Endpoints de autenticação e administração
+│   │   ├── services/              # Integração com o Amazon Cognito
+│   │   ├── guards/                # Validação de token e de grupos (RBAC)
+│   │   ├── decorators/            # @Groups() para proteger rotas por setor
+│   │   └── dto/                   # Validação de entrada
+│   ├── common/filters/            # Tratamento global de erros
+│   ├── setup-pool.ts              # Provisiona o ambiente Cognito (1x)
+│   └── seed-admin.ts              # Cria o primeiro administrador (1x)
+portal-sso/                        # Frontend (projeto separado)
 ```
 
-## Run tests
+---
 
+## Instalação e configuração
+
+### Pré-requisitos
+- Node.js 20+
+- Uma conta AWS com credenciais IAM com a permissão **AmazonCognitoPowerUser**
+
+### 1. Instalar dependências
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+### 2. Configurar as credenciais AWS
+Crie um arquivo `.env` na raiz com as credenciais da AWS:
+```env
+AWS_REGION=sa-east-1
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=...
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 3. Provisionar o ambiente Cognito (uma vez)
+O script abaixo cria, de forma automática, o **User Pool** (login por e-mail), o **App Client**, o **domínio** de login e os **grupos** padrão:
 
-## Resources
+```bash
+npm run setup:pool -- <prefixo-de-dominio>
+# ex.: npm run setup:pool -- minha-empresa-sso
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+Ao final, ele imprime os valores para completar o `.env`:
+```env
+COGNITO_USER_POOL_ID=...
+COGNITO_CLIENT_ID=...
+COGNITO_CLIENT_SECRET=...
+COGNITO_ALLOWED_CLIENT_IDS=...
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+| Variável | Obrigatória | Descrição |
+|---|---|---|
+| `AWS_REGION` | Não | Região AWS (padrão: `sa-east-1`). |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Sim | Credenciais IAM (permissão Cognito). |
+| `COGNITO_USER_POOL_ID` | Sim | ID do User Pool. |
+| `COGNITO_CLIENT_ID` / `COGNITO_CLIENT_SECRET` | Sim | App Client e seu secret. |
+| `COGNITO_ALLOWED_CLIENT_IDS` | Sim | App Clients aceitos pela API (separados por vírgula). |
+| `COGNITO_DEFAULT_GROUP` | Não | Grupo atribuído automaticamente a novos cadastros. |
+| `PORT` | Não | Porta HTTP (padrão: `3000`). |
+| `CORS_ORIGINS` | Não | Origens permitidas para CORS (separadas por vírgula). |
 
-## Support
+### 4. Executar
+```bash
+npm run start:dev      # desenvolvimento (porta 3000)
+npm run start:prod     # produção
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+---
 
-## Stay in touch
+## Primeiro acesso (administrador)
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Toda plataforma precisa de um **primeiro administrador** — quem implanta o sistema o cria uma vez:
 
-## License
+```bash
+npm run seed:admin -- email-do-dono@empresa.com
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Isso cria o grupo `admin` (se necessário) e promove esse usuário. A partir daí, **todo o resto é feito pelo painel** `/admin` — não é preciso mexer em scripts de novo.
+
+> O usuário precisa existir (ter sido convidado/logado ao menos uma vez) para ser promovido. Após promover, ele deve sair e entrar novamente para o novo papel valer.
+
+---
+
+## Guia de uso (administrador)
+
+No portal, o administrador vê o botão **🛠️ Admin** e acessa o painel, onde pode:
+
+- **Convidar usuário** — informar Nome, E-mail e Setor. A pessoa recebe o convite por e-mail e define a senha no primeiro acesso.
+- **Vincular/remover de um grupo** — mudar o setor de um usuário existente.
+- **Ver os membros** de cada grupo.
+
+Os grupos padrão criados são: `colaboradores`, `vendas`, `financeiro`, `admin`. Novos grupos podem ser criados pela API.
+
+---
+
+## Referência da API
+
+Base: `http://localhost:3000`
+
+### Saúde
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/` | Status da API. |
+
+### Recursos protegidos
+Exigem `Authorization: Bearer <access_token>` válido do Cognito.
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| `GET` | `/me` | Autenticado | Dados do usuário do token. |
+
+### Administração (somente grupo `admin`)
+| Método | Rota | Corpo |
+|---|---|---|
+| `POST` | `/auth/admin/create-user` | `{ name, email, group? }` — envia convite |
+| `POST` | `/auth/admin/groups` | `{ name, description? }` — cria grupo |
+| `POST` | `/auth/admin/groups/add-user` | `{ email, group }` |
+| `POST` | `/auth/admin/groups/remove-user` | `{ email, group }` |
+| `GET` | `/auth/admin/groups/:group/users` | — lista membros |
+
+### Autenticação programática (opcional)
+Endpoints REST para integração direta (sem o Hosted UI): `POST /auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password`, entre outros. O fluxo recomendado para o portal é o Hosted UI (ver `portal-sso`).
+
+---
+
+## Segurança
+
+- **Validação de token (JWKS):** todas as rotas protegidas verificam assinatura, expiração, emissor e App Client do token (`JwtAuthGuard`).
+- **Controle de acesso por grupo (RBAC):** o decorator `@Groups('admin')` + `GroupsGuard` bloqueiam no servidor — a interface apenas oculta, o backend recusa de fato.
+- **Rate limiting** global (`@nestjs/throttler`) e **cabeçalhos de segurança** (`helmet`).
+- **Validação de entrada** com `class-validator` (`ValidationPipe` global).
+- **Senhas:** geridas pelo Cognito; o administrador nunca tem acesso a elas.
+
+---
+
+## Checklist para produção
+
+- [ ] **E-mail:** conectar o **Amazon SES** ao Cognito (o envio padrão tem limite baixo e é só para testes).
+- [ ] **MFA:** habilitar MFA (SMS ou app autenticador) no User Pool, conforme a política da empresa.
+- [ ] **Autocadastro:** manter o autorregistro **desligado** (modelo de provisionamento por administrador).
+- [ ] **Credenciais:** usar **IAM Role** em vez de chaves de acesso quando hospedado na AWS.
+- [ ] **HTTPS e CORS:** configurar `CORS_ORIGINS` com os domínios de produção.
+- [ ] **Federação (opcional):** integrar o Cognito ao diretório corporativo (Azure AD / Google Workspace) via SAML/OIDC.
+
+---
+
+## Testes
+```bash
+npm run test       # unitários
+npm run test:e2e   # end-to-end
+npm run test:cov   # cobertura
+```
