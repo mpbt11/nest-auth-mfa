@@ -1,4 +1,4 @@
-# Plataforma de Identidade e SSO (nest-auth-mfa)
+# Plataforma de Identidade e SSO (sso-auth-api)
 
 Plataforma de **autenticação única (SSO)** e **gestão de usuários** para empresas, construída sobre o [Amazon Cognito](https://aws.amazon.com/cognito/). Permite que um colaborador faça **login uma única vez** e acesse **várias aplicações** da empresa, com controle de acesso por **setor/grupo** e um **painel de administração** para gerenciar usuários.
 
@@ -26,18 +26,18 @@ Este repositório é o **backend (API)** do sistema. A interface (portal) fica n
 
 | Papel | Responsável |
 |---|---|
-| **Identidade** (login, senha, MFA) | Amazon Cognito (Hosted UI) |
+| **Identidade** (login, senha) | Amazon Cognito (Hosted UI) |
 | **Regras de acesso / API** | Este backend (NestJS) |
 | **Interface / portal** | [`portal-sso`](../portal-sso) (Next.js) |
 
 ```
 ┌──────────────┐  login    ┌─────────────────┐
 │  portal-sso  │ ───────▶  │  Amazon Cognito │
-│  (Next.js)   │ ◀───────  │  (login + MFA)  │
+│  (Next.js)   │ ◀───────  │     (login)     │
 │  Portal/UI   │  tokens   └─────────────────┘
 │              │
 │  /apps       │  Bearer   ┌─────────────────┐
-│  /admin      │ ───────▶  │  nest-auth-mfa  │  (valida token,
+│  /admin      │ ───────▶  │  sso-auth-api   │  (valida token,
 └──────────────┘           │  (esta API)     │   grupos, admin)
                            └─────────────────┘
 ```

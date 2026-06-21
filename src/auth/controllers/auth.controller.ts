@@ -6,7 +6,6 @@ import { Groups } from '../decorators/groups.decorator';
 import {
     // RegisterDto,
     LoginDto,
-    // ChallengeResponseDto,
     // ConfirmDto,
     ForgotPasswordDto,
     ResetPasswordDto,
@@ -46,19 +45,6 @@ export class AuthController {
     async login(@Body() body: LoginDto) {
         return this.authService.login(body.email, body.password);
     }
-
-    // Endpoint legado desativado (MFA por SMS)
-    /*
-    @Post('challenge')
-    @HttpCode(HttpStatus.OK)
-    async respondToChallenge(@Body() body: ChallengeResponseDto) {
-        return this.authService.respondToChallenge(
-            body.email,
-            body.session,
-            { code: body.code }
-        );
-    }
-    */
 
     // Endpoint legado desativado (confirmação de cadastro)
     /*

@@ -4,6 +4,6 @@ import { Controller, Get } from '@nestjs/common';
 export class AppController {
   @Get()
   getStatus() {
-    return { status: 'ok', service: 'nest-auth-mfa' };
+    return { status: 'ok', service: 'sso-auth-api' };
   }
 }

@@ -29,7 +29,7 @@ async function main() {
 
     console.log('• Criando User Pool (login por e-mail)...');
     const pool = await client.send(new CreateUserPoolCommand({
-        PoolName: 'nest-auth-mfa-email',
+        PoolName: 'sso-auth-api-email',
         UsernameAttributes: ['email'],
         AutoVerifiedAttributes: ['email'],
         MfaConfiguration: 'OFF',
@@ -82,7 +82,7 @@ async function main() {
 
     const issuer = `https://cognito-idp.${REGION}.amazonaws.com/${userPoolId}`;
     console.log('\n========================================================');
-    console.log(' COLE NO  nest-auth-mfa/.env :');
+    console.log(' COLE NO  sso-auth-api/.env :');
     console.log('========================================================');
     console.log(`COGNITO_USER_POOL_ID=${userPoolId}`);
     console.log(`COGNITO_CLIENT_ID=${clientId}`);
