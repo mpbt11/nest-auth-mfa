@@ -7,7 +7,6 @@ import {
     ConfirmForgotPasswordCommand,
     CognitoIdentityProviderClient,
     AuthFlowType,
-    RespondToAuthChallengeCommand,
     ChallengeNameType,
     AttributeType,
     AdminCreateUserCommand,
@@ -55,10 +54,6 @@ export class AuthService {
         switch (challengeName) {
             case ChallengeNameType.NEW_PASSWORD_REQUIRED:
                 return 'NEW_PASSWORD_REQUIRED';
-            case ChallengeNameType.SMS_MFA:
-                return 'SMS_MFA';
-            case ChallengeNameType.SOFTWARE_TOKEN_MFA:
-                return 'SOFTWARE_TOKEN_MFA';
             default:
                 return 'DONE';
         }
@@ -215,57 +210,6 @@ export class AuthService {
         }
     }
 
-    async respondToChallenge(email: string, session: string, challengeResponse: any): Promise<CognitoResponse> {
-        try {
-            const username = this.cognitoUsername(email);
-            const secretHash = this.getSecretHash(username);
-            const command = new RespondToAuthChallengeCommand({
-                ClientId: process.env.COGNITO_CLIENT_ID,
-                ChallengeName: ChallengeNameType.SMS_MFA,
-                Session: session,
-                ChallengeResponses: {
-                    USERNAME: username,
-                    SMS_MFA_CODE: challengeResponse.code,
-                    SECRET_HASH: secretHash
-                }
-            });
-
-            const result = await this.cognitoClient.send(command);
-            const step = this.mapChallengeToStep(result.ChallengeName);
-
-            if (step !== 'DONE') {
-                return {
-                    statusCode: 200,
-                    data: {
-                        step,
-                        session: result.Session,
-                        challengeParameters: result.ChallengeParameters
-                    }
-                };
-            }
-
-            if (!result.AuthenticationResult) {
-                return {
-                    statusCode: 401,
-                    error: 'Challenge response failed'
-                };
-            }
-
-            return {
-                statusCode: 200,
-                data: {
-                    step: 'DONE',
-                    accessToken: result.AuthenticationResult.AccessToken,
-                    refreshToken: result.AuthenticationResult.RefreshToken,
-                    expiresIn: result.AuthenticationResult.ExpiresIn,
-                    tokenType: result.AuthenticationResult.TokenType
-                }
-            };
-        } catch (error: any) {
-            return handleCognitoError(error);
-        }
-    }
-
     async confirm(email: string, code: string): Promise<CognitoResponse> {
         try {
             const username = this.cognitoUsername(email);
@@ -308,7 +252,7 @@ export class AuthService {
             return {
                 statusCode: 200,
                 data: {
-                    step: 'SMS_MFA',
+                    step: 'RESET_CODE_SENT',
                     message: 'Reset password code sent',
                     codeDeliveryDetails: result.CodeDeliveryDetails
                 }
@@ -392,7 +336,7 @@ export class AuthService {
             return {
                 statusCode: 200,
                 data: {
-                    step: 'SMS_MFA',
+                    step: 'CONFIRM_SIGN_UP',
                     email: email,
                     message: 'Confirmation code resent successfully',
                     codeDeliveryDetails: result.CodeDeliveryDetails

@@ -18,12 +18,6 @@ export class UserAlreadyExistsException extends HttpException {
     }
 }
 
-export class InvalidMfaCodeException extends HttpException {
-    constructor(message: string = 'Código MFA inválido') {
-        super(message, HttpStatus.BAD_REQUEST);
-    }
-}
-
 export class MissingFieldsException extends HttpException {
     constructor(fields: string[]) {
         super(
